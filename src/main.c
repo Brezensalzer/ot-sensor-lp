@@ -95,104 +95,96 @@ void main(void)
 		printk("--- ot-sensor-lp ---\n");
 	#endif
 
-	//------------------------------------
-	// go to sleep
-	//------------------------------------
-	#ifdef DEBUG
-		printk("sleep...\n");
-		err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_SUSPEND);
-	#endif
-	pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
-	k_sleep(K_SECONDS(SLEEP_TIME));
-	pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
-	#ifdef DEBUG
-		err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_RESUME);
-		printk("...wake up\n");
-	#endif
-	
-	//-----------------------------
-	// init sensor
-	//-----------------------------
-	#ifdef DEBUG
-		printk("init sensor\n");
-	#endif
-	// power up i2c sensor
-	err = gpio_pin_configure_dt(&bme280_power, GPIO_OUTPUT_HIGH);
-	err = gpio_pin_set_dt(&bme280_power, HIGH);
-	k_sleep(K_MSEC(100)); // sensor boot time
-
-	if(!device_is_ready(i2c_device)) {
+	while(true) {
+		//------------------------------------
+		// go to sleep
+		//------------------------------------
 		#ifdef DEBUG
-			printk("I2C bus not ready!\n");
+			printk("sleep...\n");
+			err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_SUSPEND);
 		#endif
-		return;
-	}
-
-	// read chip id
-	write_reg_buffer[0] = BME280_CHIP_ID;
-	err = i2c_write_read(i2c_device, BME280_I2C_ADDRESS, write_reg_buffer, 1, read_buf_id, 1);
-	if(err != 0) {
+		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
+		k_sleep(K_SECONDS(SLEEP_TIME));
+		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
 		#ifdef DEBUG
-			printk("BME280 chip id read failed.\n");
+			err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_RESUME);
+			printk("...wake up\n");
 		#endif
-		return;
-	}
-	bme_data.chip_id = read_buf_id[0];
-	err = gpio_pin_configure_dt(&led_blue, GPIO_OUTPUT_HIGH);
-	err = gpio_pin_set_dt(&led_blue, 1);
-	#ifdef DEBUG
-		printk("Chip ID 0x%02X \n", bme_data.chip_id);
-		printk("Sensor started\n");
-	#endif
-	k_sleep(K_MSEC(500));
-	err = gpio_pin_set_dt(&led_blue, 0);
-
-	//------------------------------------
-	// take measurement
-	//------------------------------------
-/*
-	struct sensor_value temp, humidity;
-
-	if (sensor_sample_fetch(sht)) {
+		
+		//-----------------------------
+		// init sensor
+		//-----------------------------
 		#ifdef DEBUG
-			printk("Failed to fetch sample from SHT4X device\n");
+			printk("init sensor\n");
 		#endif
-		return;
-	}
-	sensor_channel_get(sht, SENSOR_CHAN_AMBIENT_TEMP, &temp);
-	sensor_channel_get(sht, SENSOR_CHAN_HUMIDITY, &humidity);
+		// power up i2c sensor
+		err = gpio_pin_configure_dt(&bme280_power, GPIO_OUTPUT_HIGH);
+		err = gpio_pin_set_dt(&bme280_power, HIGH);
+		k_sleep(K_MSEC(100)); // sensor boot time
 
-	//------------------------------------
-	// construct json message
-	//------------------------------------
-	snprintf(json_buf, sizeof(json_buf),
-		"{ \"id\": \"%s\", \"temp\": %d.%d, \"hum\": %d.%d }",
-		eui64_id, temp.val1, temp.val2, humidity.val1, humidity.val2);
+		if(!device_is_ready(i2c_device)) {
+			#ifdef DEBUG
+				printk("I2C bus not ready!\n");
+			#endif
+			return;
+		}
 
-	#ifdef DEBUG
-		printk("JSON message: %s",json_buf);
-	#endif
-*/
-	snprintf(json_buf, sizeof(json_buf),
-		"{ \"id\": \"AABBCCDDEEFF0011\", \"temp\": 21.00, \"hum\": 47.00 }");
-	#ifdef DEBUG
-		printk("JSON message: %s \n",json_buf);
-	#endif
+		// read chip id
+		write_reg_buffer[0] = BME280_CHIP_ID;
+		err = i2c_write_read(i2c_device, BME280_I2C_ADDRESS, write_reg_buffer, 1, read_buf_id, 1);
+		if(err != 0) {
+			#ifdef DEBUG
+				printk("BME280 chip id read failed.\n");
+			#endif
+			return;
+		}
+		bme_data.chip_id = read_buf_id[0];
+		err = gpio_pin_configure_dt(&led_blue, GPIO_OUTPUT_HIGH);
+		err = gpio_pin_set_dt(&led_blue, 1);
+		#ifdef DEBUG
+			printk("Chip ID 0x%02X \n", bme_data.chip_id);
+			printk("Sensor started\n");
+		#endif
+		k_sleep(K_MSEC(500));
+		err = gpio_pin_set_dt(&led_blue, 0);
 
-	// clear json buffer
-	json_buf[0] = "\0";
+		//------------------------------------
+		// take measurement
+		//------------------------------------
+	/*
+		struct sensor_value temp, humidity;
 
-	//------------------------------------
-	// hard reset
-	//------------------------------------
-	#ifdef DEBUG
-		printk("reboot system\n");
-	#endif
-	err = gpio_pin_set_dt(&bme280_power, LOW);
+		if (sensor_sample_fetch(sht)) {
+			#ifdef DEBUG
+				printk("Failed to fetch sample from SHT4X device\n");
+			#endif
+			return;
+		}
+		sensor_channel_get(sht, SENSOR_CHAN_AMBIENT_TEMP, &temp);
+		sensor_channel_get(sht, SENSOR_CHAN_HUMIDITY, &humidity);
+	*/
+		// power down BME280 sensor
+		err = gpio_pin_set_dt(&bme280_power, LOW);
+	/*
+		//------------------------------------
+		// construct json message
+		//------------------------------------
+		snprintf(json_buf, sizeof(json_buf),
+			"{ \"id\": \"%s\", \"temp\": %d.%d, \"hum\": %d.%d }",
+			eui64_id, temp.val1, temp.val2, humidity.val1, humidity.val2);
 
-	sys_reboot(SYS_REBOOT_WARM);
+		#ifdef DEBUG
+			printk("JSON message: %s",json_buf);
+		#endif
+	*/
+		snprintf(json_buf, sizeof(json_buf),
+			"{ \"id\": \"AABBCCDDEEFF0011\", \"temp\": 21.00, \"hum\": 47.00 }");
+		#ifdef DEBUG
+			printk("JSON message: %s \n",json_buf);
+		#endif
 
-	while (true) {
-		k_sleep(K_MSEC(100));
+		// clear json buffer
+		json_buf[0] = "\0";
+
 	};
 }
