@@ -15,7 +15,7 @@
 #include <zephyr/pm/pm.h>
 #include <zephyr/pm/device.h>
 
-//#define DEBUG
+#define DEBUG
 #ifdef DEBUG
 	#include <zephyr/drivers/uart.h>
 	#include <zephyr/usb/usb_device.h>
@@ -51,12 +51,6 @@ static const struct gpio_dt_spec bme280_power = GPIO_DT_SPEC_GET(PWR_IO_NODE, gp
 #define LOW 0
 
 #define SLEEP_TIME 10
-#define SYS_REBOOT_COLD   1
-#define SYS_REBOOT_WARM   0
-
-// define the i2c bus
-#define I2C_NODE DT_NODELABEL(i2c0)
-static const struct device *i2c_device = DEVICE_DT_GET(I2C_NODE);
 
 // define the BME280 sensor
 #include "bme280.h"
@@ -85,12 +79,12 @@ void main(void)
 			return;
 		}
 
-/*		// wait for serial connection !!! blocking !!!
+		// wait for serial connection !!! blocking !!!
 		while (!dtr) {
 			uart_line_ctrl_get(usbdev, UART_LINE_CTRL_DTR, &dtr);
 			k_sleep(K_MSEC(100));
 		} 
-*/
+
 		err = gpio_pin_set_dt(&led_green, 0);
 		printk("--- ot-sensor-lp ---\n");
 	#endif
@@ -101,13 +95,13 @@ void main(void)
 		//------------------------------------
 		#ifdef DEBUG
 			printk("sleep...\n");
-			err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_SUSPEND);
+			//err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_SUSPEND);
 		#endif
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
 		k_sleep(K_SECONDS(SLEEP_TIME));
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
 		#ifdef DEBUG
-			err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_RESUME);
+			//err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_RESUME);
 			printk("...wake up\n");
 		#endif
 		
@@ -130,15 +124,13 @@ void main(void)
 		}
 
 		// read chip id
-		write_reg_buffer[0] = BME280_CHIP_ID;
-		err = i2c_write_read(i2c_device, BME280_I2C_ADDRESS, write_reg_buffer, 1, read_buf_id, 1);
+		err = bme280_read_chip_id();
 		if(err != 0) {
 			#ifdef DEBUG
-				printk("BME280 chip id read failed.\n");
+				printk("read chip id failed rc: %d", err);
 			#endif
 			return;
 		}
-		bme_data.chip_id = read_buf_id[0];
 		err = gpio_pin_configure_dt(&led_blue, GPIO_OUTPUT_HIGH);
 		err = gpio_pin_set_dt(&led_blue, 1);
 		#ifdef DEBUG

@@ -1,6 +1,12 @@
+/*
+*  BME280 driver without device tree
+*/
 #ifndef BME280_H_
 #define BME_280_H_
 
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
+#include <zephyr/drivers/i2c.h>
 #include <inttypes.h>
 
 // define the BME280 sensor
@@ -56,5 +62,14 @@ uint8_t read_buf_press[18];
 uint8_t read_buf_hum[7];
 uint8_t	write_reg_buffer[1];
 uint8_t read_meas_buf[9];
+
+// define the i2c bus
+#define I2C_NODE DT_NODELABEL(i2c0)
+static const struct device *i2c_device = DEVICE_DT_GET(I2C_NODE);
+
+//------------------------------------
+// read chip id -> connection test
+//------------------------------------
+int bme280_read_chip_id(void);
 
 #endif
