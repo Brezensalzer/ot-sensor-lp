@@ -5,7 +5,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
-#include <zephyr/drivers/i2c.h>
+//#include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
 #include <stdio.h>
 
@@ -54,6 +54,7 @@ static const struct gpio_dt_spec bme280_power = GPIO_DT_SPEC_GET(PWR_IO_NODE, gp
 
 // define the BME280 sensor
 #include "bme280.h"
+struct bme280_result_type bme280_result;
 
 //-----------------------------
 void main(void)
@@ -124,17 +125,10 @@ void main(void)
 		}
 
 		// read chip id
-		err = bme280_read_chip_id();
-		if(err != 0) {
-			#ifdef DEBUG
-				printk("read chip id failed rc: %d", err);
-			#endif
-			return;
-		}
 		err = gpio_pin_configure_dt(&led_blue, GPIO_OUTPUT_HIGH);
 		err = gpio_pin_set_dt(&led_blue, 1);
 		#ifdef DEBUG
-			printk("Chip ID 0x%02X \n", bme_data.chip_id);
+			printk("Chip ID 0x%02X \n", bme280_read_chip_id());
 			printk("Sensor started\n");
 		#endif
 		k_sleep(K_MSEC(500));
@@ -143,38 +137,22 @@ void main(void)
 		//------------------------------------
 		// take measurement
 		//------------------------------------
-	/*
-		struct sensor_value temp, humidity;
+		bme280_result = bme280_read_values();
 
-		if (sensor_sample_fetch(sht)) {
-			#ifdef DEBUG
-				printk("Failed to fetch sample from SHT4X device\n");
-			#endif
-			return;
-		}
-		sensor_channel_get(sht, SENSOR_CHAN_AMBIENT_TEMP, &temp);
-		sensor_channel_get(sht, SENSOR_CHAN_HUMIDITY, &humidity);
-	*/
 		// power down BME280 sensor
 		err = gpio_pin_set_dt(&bme280_power, LOW);
-	/*
+
 		//------------------------------------
 		// construct json message
 		//------------------------------------
 		snprintf(json_buf, sizeof(json_buf),
-			"{ \"id\": \"%s\", \"temp\": %d.%d, \"hum\": %d.%d }",
-			eui64_id, temp.val1, temp.val2, humidity.val1, humidity.val2);
+			"{ \"id\": \"AABBCCDDEEFF0011\", \"temp\": %.2f, \"press\": %.2f, \"hum\": %.2f }",
+			(bme280_result.temp / 100.0), (bme280_result.press / 100.0), (bme280_result.hum / 100.0));
 
-		#ifdef DEBUG
-			printk("JSON message: %s",json_buf);
-		#endif
-	*/
-		snprintf(json_buf, sizeof(json_buf),
-			"{ \"id\": \"AABBCCDDEEFF0011\", \"temp\": 21.00, \"hum\": 47.00 }");
 		#ifdef DEBUG
 			printk("JSON message: %s \n",json_buf);
 		#endif
-
+	
 		// clear json buffer
 		json_buf[0] = "\0";
 

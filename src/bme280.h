@@ -19,7 +19,7 @@
 #define BME280_REG_HUM_COMP_PART2	0xE1
 #define BME280_CHIP_ID				0x60
 
-struct {
+extern struct bme280_data_type {
 	// compensation parameters
 	uint16_t	dig_t1;
 	int16_t		dig_t2;
@@ -54,14 +54,20 @@ struct {
 	int32_t		t_fine;
 
 	uint8_t		chip_id;
-}  bme_data;
+};
 
-uint8_t	read_buf_id[1];
-uint8_t read_buf_temp[6];
-uint8_t read_buf_press[18];
-uint8_t read_buf_hum[7];
-uint8_t	write_reg_buffer[1];
-uint8_t read_meas_buf[9];
+extern struct bme280_result_type {
+	uint32_t	temp;
+	uint32_t	press;
+	uint32_t	hum;
+};
+
+static uint8_t read_buf_id[1];
+static uint8_t read_buf_temp[6];
+static uint8_t read_buf_press[18];
+static uint8_t read_buf_hum[7];
+static uint8_t write_reg_buffer[1];
+static uint8_t read_meas_buf[9];
 
 // define the i2c bus
 #define I2C_NODE DT_NODELABEL(i2c0)
@@ -70,6 +76,11 @@ static const struct device *i2c_device = DEVICE_DT_GET(I2C_NODE);
 //------------------------------------
 // read chip id -> connection test
 //------------------------------------
-int bme280_read_chip_id(void);
+uint8_t bme280_read_chip_id(void);
+
+//------------------------------------
+// read final values
+//------------------------------------
+struct bme280_result_type bme280_read_values(void);
 
 #endif
