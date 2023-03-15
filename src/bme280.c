@@ -14,7 +14,7 @@
 #define CONFIG_BME280_FILTER_OFF
 #include "bme280.h"
 
-#define DEBUG
+//#define DEBUG
 struct bme280_data_type bme280_data;
 
 //------------------------------------

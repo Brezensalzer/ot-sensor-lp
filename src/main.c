@@ -5,7 +5,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
-//#include <zephyr/drivers/i2c.h>
 #include <zephyr/drivers/gpio.h>
 #include <stdio.h>
 
@@ -135,7 +134,7 @@ void main(void)
 		// take measurement
 		//------------------------------------
 		bme280_result = bme280_read_values();
-		err = gpio_pin_set_dt(&led_blue, 1);
+		err = gpio_pin_set_dt(&led_blue, 0);
 
 		// power down BME280 sensor
 		err = gpio_pin_set_dt(&bme280_power, LOW);
