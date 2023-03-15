@@ -267,15 +267,28 @@ struct bme280_result_type bme280_read_values(void) {
             printk("read meas_buf failed! \n"); 
         #endif
     }
+    #ifdef DEBUG
+        printk("MEAS buffer: %X, %X, %X, %X, %X, %X, %X, %X\n",
+        read_meas_buf[0], read_meas_buf[1], read_meas_buf[2], read_meas_buf[3], 
+        read_meas_buf[4], read_meas_buf[5], read_meas_buf[6], read_meas_buf[7]);
+    #endif
 
     bme280_data.ucomp_press = (read_meas_buf[0] << 12) | (read_meas_buf[1] << 4) | (read_meas_buf[2] >> 4);
     bme280_data.ucomp_temp = (read_meas_buf[3] << 12) | (read_meas_buf[4] << 4) | (read_meas_buf[5] >> 4);
     bme280_data.ucomp_hum = (read_meas_buf[6] << 8) | read_meas_buf[7];
 
+    #ifdef DEBUG
+        printk("uncompensated - Temp: %X, Press: %X, Hum: %X\n",
+                bme280_data.ucomp_temp, bme280_data.ucomp_press, bme280_data.ucomp_hum);
+    #endif
+
     bme280_compensate_temp();
     bme280_compensate_press();
     bme280_compensate_humidity();
 
+    #ifdef DEBUG
+        printk("raw result Temp: %X, Press: %X, Hum: %X\n", bme280_data.comp_temp, bme280_data.comp_press, bme280_data.comp_temp);
+    #endif
 	// bme280_data.comp_temp has a resolution of 0.01 degC.
 	// So 5123 equals 51.23 degC.
     result.temp  = bme280_data.comp_temp / 100.0;
@@ -289,6 +302,10 @@ struct bme280_result_type bme280_read_values(void) {
     // Output value of 47445 represents 
     // 47445/1024 = 46.333 %RH
     result.hum   = bme280_data.comp_hum / 1024.0;
+
+    #ifdef DEBUG
+        printk("Results - Temp: %.2f °C, Press: %.2f hPa, Hum: %.2f %%RH\n", result.temp, result.press, result.hum);
+    #endif
 
     return result;
 }
