@@ -114,11 +114,11 @@ void udp_send(char *buf)
 void main(void)
 //-----------------------------
 {
-	char json_buf[100];
+	char json_buf[80];
 	int err;
 
 	uint8_t eui64[8];
-	char eui64_id[17];
+	char eui64_id[20];
 	char buf[3];
 
 	#ifdef DEBUG
@@ -153,7 +153,8 @@ void main(void)
 
 	// convert EUI64 to hex string
 	for (int i=0; i < 8; i++) {
-		snprintf(buf, sizeof(buf),"%0X",eui64[i]);
+		buf[0] = "\0";
+		snprintk(buf, sizeof(buf),"%02X",eui64[i]);
 		strcat(eui64_id,buf);
 	}
 
@@ -224,8 +225,8 @@ void main(void)
 		//------------------------------------
 		// construct json message
 		//------------------------------------
-		snprintf(json_buf, sizeof(json_buf),
-			"{ \"id\": \"%s\", \"temp\": %f, \"press\": %f, \"hum\": %f }",
+		snprintk(json_buf, sizeof(json_buf),
+			"{ \"id\": \"%s\", \"temp\": %.2f, \"press\": %.2f, \"hum\": %.2f }",
 			eui64_id, bme280_result.temp, bme280_result.press, bme280_result.hum);
 
 		#ifdef DEBUG
