@@ -109,9 +109,6 @@ void main(void)
 		//-----------------------------
 		// init sensor
 		//-----------------------------
-		#ifdef DEBUG
-			printk("init sensor\n");
-		#endif
 		// power up i2c sensor
 		err = gpio_pin_configure_dt(&bme280_power, GPIO_OUTPUT_HIGH);
 		err = gpio_pin_set_dt(&bme280_power, HIGH);
@@ -124,20 +121,21 @@ void main(void)
 			return;
 		}
 
+		// init sensor
+		err = bme280_chip_init();
+
 		// read chip id
 		err = gpio_pin_configure_dt(&led_blue, GPIO_OUTPUT_HIGH);
 		err = gpio_pin_set_dt(&led_blue, 1);
 		#ifdef DEBUG
 			printk("Chip ID 0x%02X \n", bme280_read_chip_id());
-			printk("Sensor started\n");
 		#endif
-		k_sleep(K_MSEC(500));
-		err = gpio_pin_set_dt(&led_blue, 0);
 
 		//------------------------------------
 		// take measurement
 		//------------------------------------
 		bme280_result = bme280_read_values();
+		err = gpio_pin_set_dt(&led_blue, 1);
 
 		// power down BME280 sensor
 		err = gpio_pin_set_dt(&bme280_power, LOW);
@@ -147,7 +145,7 @@ void main(void)
 		//------------------------------------
 		snprintf(json_buf, sizeof(json_buf),
 			"{ \"id\": \"AABBCCDDEEFF0011\", \"temp\": %.2f, \"press\": %.2f, \"hum\": %.2f }",
-			(bme280_result.temp / 100.0), (bme280_result.press / 100.0), (bme280_result.hum / 100.0));
+			bme280_result.temp, bme280_result.press, bme280_result.hum);
 
 		#ifdef DEBUG
 			printk("JSON message: %s \n",json_buf);
