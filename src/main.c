@@ -14,7 +14,7 @@
 #include <zephyr/pm/pm.h>
 #include <zephyr/pm/device.h>
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 	#include <zephyr/drivers/uart.h>
 	#include <zephyr/usb/usb_device.h>
