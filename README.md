@@ -17,4 +17,4 @@ So I'm trying brute force methods:
 * deep sleep current is now 12µA
 
 ## update (tag beta_v02)
-* added an overlay file for the Seeestudio XIA BLE, works exactly like the Nordic dongle.
+* added an overlay file for the Seeedstudio XIA BLE, works exactly like the Nordic dongle.
