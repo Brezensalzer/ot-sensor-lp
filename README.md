@@ -15,3 +15,6 @@ So I'm trying brute force methods:
 * directly use the sensor with i2c commands and register voodoo
 * the sensor can now be powered and switched off by a GPIO pin.
 * deep sleep current is now 12µA
+
+## update (tag beta_v02)
+* added an overlay file for the Seeestudio XIA BLE, works exactly like the Nordic dongle.
