@@ -164,7 +164,7 @@ extern struct bme280_result_type {
 };
 
 // define the i2c bus
-#define I2C_NODE DT_NODELABEL(i2c0)
+#define I2C_NODE DT_ALIAS(i2c)
 static const struct device *i2c_device = DEVICE_DT_GET(I2C_NODE);
 
 //------------------------------------

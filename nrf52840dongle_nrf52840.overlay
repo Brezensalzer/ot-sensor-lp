@@ -17,6 +17,7 @@
 	// the alias is used in the zephyr program
 	aliases {
 			pwr = &pin02; 
+			i2c = &i2c0;
 	};
 }; 
 

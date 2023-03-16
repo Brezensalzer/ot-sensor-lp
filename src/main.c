@@ -23,7 +23,7 @@
 #endif
 
 // the devicetree node identifier for the "led1_green" alias
-#define LED1_GREEN_NODE DT_ALIAS(led1_green)
+#define LED1_GREEN_NODE DT_ALIAS(led1)
 static const struct gpio_dt_spec led_green = GPIO_DT_SPEC_GET(LED1_GREEN_NODE, gpios);
 
 #if DT_NODE_HAS_STATUS(LED1_GREEN_NODE, okay)
@@ -31,7 +31,7 @@ static const struct gpio_dt_spec led_green = GPIO_DT_SPEC_GET(LED1_GREEN_NODE, g
 #endif
 
 // the devicetree node identifier for the "led1_blue" alias
-#define LED1_BLUE_NODE DT_ALIAS(led1_blue)
+#define LED1_BLUE_NODE DT_ALIAS(led2)
 static const struct gpio_dt_spec led_blue = GPIO_DT_SPEC_GET(LED1_BLUE_NODE, gpios);
 
 #if DT_NODE_HAS_STATUS(LED1_BLUE_NODE, okay)
