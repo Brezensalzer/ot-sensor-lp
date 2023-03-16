@@ -116,9 +116,9 @@ void main(void)
 {
 	char json_buf[80];
 	int err;
-
-	uint8_t eui64[8];
-	char eui64_id[20];
+	
+	otExtAddress eui64;
+	char eui64_id[25];
 	char buf[3];
 
 	#ifdef DEBUG
@@ -149,15 +149,14 @@ void main(void)
 	//-------------------------------------
 	otInstance *ot_instance;
 	ot_instance = openthread_get_default_instance();
-	otPlatRadioGetIeeeEui64(ot_instance, eui64);
+	otPlatRadioGetIeeeEui64(ot_instance, eui64.m8);
 
 	// convert EUI64 to hex string
-	for (int i=0; i < 8; i++) {
-		buf[0] = "\0";
-		snprintk(buf, sizeof(buf),"%02X",eui64[i]);
+	for (uint8_t i=0; i < 8; i++) {
+		snprintk(buf, sizeof(buf),"%02X",eui64.m8[i]);
 		strcat(eui64_id,buf);
 	}
-
+	
 	// set TX power to +8dbm
 	err = otPlatRadioSetTransmitPower(ot_instance, 8);
 
