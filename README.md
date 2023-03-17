@@ -18,3 +18,6 @@ So I'm trying brute force methods:
 
 ## update (tag beta_v02)
 * added an overlay file for the Seeedstudio XIA BLE, works exactly like the Nordic dongle.
+
+PPK2 measurement over a full 1 minute cycle (Nordic nRF52840 Dongle, BME280)
+![PPK2 measurement over a full 1 minute cycle (Nordic nRF52840 Dongle, BME280)](./ppk-20230317T112846.png)

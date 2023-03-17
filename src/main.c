@@ -49,7 +49,7 @@ static const struct gpio_dt_spec bme280_power = GPIO_DT_SPEC_GET(PWR_IO_NODE, gp
 // helper
 #define HIGH 1
 #define LOW 0
-#define SLEEP_TIME 10
+#define SLEEP_TIME 60
 
 // define the BME280 sensor
 #include "bme280.h"
