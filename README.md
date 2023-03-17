@@ -16,8 +16,12 @@ So I'm trying brute force methods:
 * the sensor can now be powered and switched off by a GPIO pin.
 * deep sleep current is now 12µA
 
-## update (tag beta_v02)
-* added an overlay file for the Seeedstudio XIA BLE, works exactly like the Nordic dongle.
-
 PPK2 measurement over a full 1 minute cycle (Nordic nRF52840 Dongle, BME280)
 ![PPK2 measurement over a full 1 minute cycle (Nordic nRF52840 Dongle, BME280)](./ppk-20230317T112846.png)
+
+### update (tag beta_v02)
+* added an overlay file for the Seeedstudio XIAO BLE, works exactly like the Nordic dongle.
+
+### update (tag beta_v03)
+* removed the blinky led code
+* added an overlay file for the Adafruit Itsybitsy nRF52840, works like the Nordic dongle.
