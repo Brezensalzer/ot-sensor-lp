@@ -3,6 +3,7 @@
 			//zephyr,shell-uart = &cdc_acm_uart0;
 			zephyr,console = &cdc_acm_uart0;
 			zephyr,i2c = &i2c0;
+			zephyr,ieee802154 = &ieee802154;
 	};
 
 	// define pins to make them usable in zephyr programs
@@ -27,13 +28,4 @@
 			compatible = "zephyr,cdc-acm-uart";
 			label = "CDC_ACM_0";
 	};
-};
-
-// activating the i2c0 bus
-&i2c0 {
-	compatible = "nordic,nrf-twi";
-	status = "okay";
-	pinctrl-0 = <&i2c0_default>;
-	pinctrl-1 = <&i2c0_sleep>;
-	pinctrl-names = "default", "sleep";
 };
