@@ -22,6 +22,10 @@
 	};
 }; 
 
+&ieee802154 {
+	status = "okay";
+};
+
 // Serial over USB
 &zephyr_udc0 {
 	cdc_acm_uart0: cdc_acm_uart0 {
