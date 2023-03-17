@@ -6,6 +6,7 @@
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/gpio.h>
+#include <string.h>
 #include <stdio.h>
 
 #include <openthread/thread.h>
@@ -23,19 +24,11 @@
 #endif
 
 // the devicetree node identifier for the "led1_green" alias
-#define LED1_GREEN_NODE DT_ALIAS(led1)
-static const struct gpio_dt_spec led_green = GPIO_DT_SPEC_GET(LED1_GREEN_NODE, gpios);
+#define LED0_NODE DT_ALIAS(led0)
+static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
-#if DT_NODE_HAS_STATUS(LED1_GREEN_NODE, okay)
-	#define LED1_GREEN_PIN DT_GPIO_PIN(LED1_GREEN_NODE, gpios)
-#endif
-
-// the devicetree node identifier for the "led1_blue" alias
-#define LED1_BLUE_NODE DT_ALIAS(led2)
-static const struct gpio_dt_spec led_blue = GPIO_DT_SPEC_GET(LED1_BLUE_NODE, gpios);
-
-#if DT_NODE_HAS_STATUS(LED1_BLUE_NODE, okay)
-	#define LED1_BLUE_PIN DT_GPIO_PIN(LED1_BLUE_NODE, gpios)
+#if DT_NODE_HAS_STATUS(LED0_NODE, okay)
+	#define LED0_PIN DT_GPIO_PIN(LED0_NODE, gpios)
 #endif
 
 // the devicetree node identifier for our self-defined "pwr" alias.
@@ -122,8 +115,8 @@ void main(void)
 	char buf[3];
 
 	#ifdef DEBUG
-		err = gpio_pin_configure_dt(&led_green, GPIO_OUTPUT_HIGH);
-		err = gpio_pin_set_dt(&led_green, 1);
+		err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_HIGH);
+		err = gpio_pin_set_dt(&led, 1);
 		k_sleep(K_MSEC(500));
 
 		const struct device *usbdev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
@@ -140,7 +133,7 @@ void main(void)
 			k_sleep(K_MSEC(100));
 		} 
 
-		err = gpio_pin_set_dt(&led_green, 0);
+		err = gpio_pin_set_dt(&led, 0);
 		printk("--- ot-sensor-lp ---\n");
 	#endif
 
@@ -164,12 +157,12 @@ void main(void)
 	int device_state = otThreadGetDeviceRole(ot_instance);
 	while ((device_state == OT_DEVICE_ROLE_DETACHED)
 			||(device_state == OT_DEVICE_ROLE_DISABLED)) {
-		err = gpio_pin_configure_dt(&led_blue, GPIO_OUTPUT_HIGH);
-		err = gpio_pin_set_dt(&led_blue, 1);
+		err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_HIGH);
+		err = gpio_pin_set_dt(&led, 1);
 		k_sleep(K_MSEC(1000));
 		device_state = otThreadGetDeviceRole(ot_instance);
 	}
-	err = gpio_pin_set_dt(&led_blue, 0);
+	err = gpio_pin_set_dt(&led, 0);
 
 	while(true) {
 		//------------------------------------
@@ -206,8 +199,6 @@ void main(void)
 		err = bme280_chip_init();
 
 		// read chip id
-		err = gpio_pin_configure_dt(&led_blue, GPIO_OUTPUT_HIGH);
-		err = gpio_pin_set_dt(&led_blue, 1);
 		#ifdef DEBUG
 			printk("Chip ID 0x%02X \n", bme280_read_chip_id());
 		#endif
@@ -216,7 +207,6 @@ void main(void)
 		// take measurement
 		//------------------------------------
 		bme280_result = bme280_read_values();
-		err = gpio_pin_set_dt(&led_blue, 0);
 
 		// power down BME280 sensor
 		err = gpio_pin_set_dt(&bme280_power, LOW);
