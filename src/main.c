@@ -11,7 +11,6 @@
 
 #include <openthread/thread.h>
 #include <openthread/udp.h>
-
 #include <zephyr/pm/pm.h>
 #include <zephyr/pm/device.h>
 
@@ -164,6 +163,10 @@ void main(void)
 		device_state = otThreadGetDeviceRole(ot_instance);
 	}
 	err = gpio_pin_set_dt(&led, 0);
+
+	// IP address of COAP Server
+	otIp6Address coapAddress;
+	otIp6AddressFromString("fdd0:15d6:9e7f:2:0:0:c0a8:10b", &coapAddress);
 
 	while(true) {
 		//------------------------------------
