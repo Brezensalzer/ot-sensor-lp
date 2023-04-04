@@ -142,6 +142,7 @@ void main(void)
 	//-------------------------------------
 	otInstance *ot_instance;
 	ot_instance = openthread_get_default_instance();
+
 	otPlatRadioGetIeeeEui64(ot_instance, eui64.m8);
 
 	// convert EUI64 to hex string
@@ -170,13 +171,11 @@ void main(void)
 		//------------------------------------
 		#ifdef DEBUG
 			printk("sleep...\n");
-			//err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_SUSPEND);
 		#endif
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
 		k_sleep(K_SECONDS(SLEEP_TIME));
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
 		#ifdef DEBUG
-			//err = pm_device_action_run(usbdev, PM_DEVICE_ACTION_RESUME);
 			printk("...wake up\n");
 		#endif
 		
