@@ -13,13 +13,14 @@
 #include <openthread/udp.h>
 #include <zephyr/pm/pm.h>
 #include <zephyr/pm/device.h>
+#include <openthread/coap.h>
 
-//#define DEBUG
+#define DEBUG
 #ifdef DEBUG
 	#include <zephyr/drivers/uart.h>
 	#include <zephyr/usb/usb_device.h>
 	#include <zephyr/logging/log.h>
-	LOG_MODULE_REGISTER(cdc_acm_echo, LOG_LEVEL_INF);
+	LOG_MODULE_REGISTER(ot_sensor, LOG_LEVEL_INF);
 #endif
 
 // the devicetree node identifier for the "led1_green" alias
@@ -48,57 +49,57 @@ static const struct gpio_dt_spec bme280_power = GPIO_DT_SPEC_GET(PWR_IO_NODE, gp
 struct bme280_result_type bme280_result;
 
 //-----------------------------
-void udp_send(char *buf)
+void coap_response_handler(void * p_context, otMessage * p_message, const otMessageInfo * p_msginfo, otError result)
+//-----------------------------
+{
+	if (result == OT_ERROR_NONE) {
+		#ifdef DEBUG
+			LOG_INF("Message delivery confirmed");
+		#endif
+	}
+	else {
+		#ifdef DEBUG
+			LOG_INF("Message delivery not confirmed rc: %d", result);
+		#endif
+	}
+}
+
+//-----------------------------
+void coap_send(char *jsonbuf)
 //-----------------------------
 {
 	otError ot_error = OT_ERROR_NONE;
-	
-	// fetch OpenThread instance and udp_socket
+
+	// IP address of COAP Server nodered.modellmarine.de
+	otIp6Address coapAddress;
+	otIp6AddressFromString("fdd0:15d6:9e7f:2:0:0:c0a8:10b", &coapAddress);
+
+	// fetch OpenThread instance
 	otInstance *ot_instance;
 	ot_instance = openthread_get_default_instance();
-	otUdpSocket udp_socket;
 
-	// prepare the message, target address and target port
-	otMessageInfo message_info;
-	memset(&message_info, 0, sizeof(message_info));
-	// ff03::1 is the IPv6 mesh local multicast address
-	otIp6AddressFromString("ff03::1", &message_info.mPeerAddr);
-	message_info.mPeerPort = 1234;
+	otMessageSettings msgSettings;
+	msgSettings.mLinkSecurityEnabled = false;
+	msgSettings.mPriority = OT_MESSAGE_PRIORITY_NORMAL;
 
-	// send the message
-	do {
-		ot_error = otUdpOpen(ot_instance, &udp_socket, NULL, NULL);
-		if (ot_error != OT_ERROR_NONE) { 
-			#ifdef DEBUG
-				LOG_ERR("could not open udp port");
-			#endif
-			break; 
-		}
+	otMessageInfo msgInfo;
+	msgInfo.mPeerAddr = coapAddress;
+	msgInfo.mPeerPort = OT_DEFAULT_COAP_PORT;
 
-		otMessage *json_message = otUdpNewMessage(ot_instance, NULL);
-		ot_error = otMessageAppend(json_message, buf, (uint16_t)strlen(buf));
-		if (ot_error != OT_ERROR_NONE) { 
-			#ifdef DEBUG
-				LOG_ERR("could not append message");
-			#endif
-			break; 
-		}
-
-		ot_error = otUdpSend(ot_instance, &udp_socket, json_message, &message_info);
-		if (ot_error != OT_ERROR_NONE) { 
-			#ifdef DEBUG
-				LOG_ERR("could not send udp message");
-			#endif
-			break; 
-		}
-
-		ot_error = otUdpClose(ot_instance, &udp_socket);
-	} while(false);
-
+	otMessage *msg = otCoapNewMessage( ot_instance, &msgSettings);
+	otCoapMessageInit(msg, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_PUT);
+	otCoapMessageGenerateToken(msg, 8);
+	ot_error = otCoapMessageAppendUriPathOptions(msg, "openthread");
+		LOG_INF("UriPathOption rc: %s", otThreadErrorToString(ot_error));
+	ot_error = otCoapMessageAppendContentFormatOption(msg, OT_COAP_OPTION_CONTENT_FORMAT_JSON);
+		LOG_INF("ContentFormatOption rc: %s", otThreadErrorToString(ot_error));
+	ot_error = otCoapMessageSetPayloadMarker(msg);
+		LOG_INF("SetPayloadMarker rc: %s", otThreadErrorToString(ot_error));
+	ot_error = otMessageAppend(msg, jsonbuf, strlen(jsonbuf));
+		LOG_INF("MessageAppend rc: %s", otThreadErrorToString(ot_error));
+	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, coap_response_handler, NULL);
 	#ifdef DEBUG
-		if (ot_error == OT_ERROR_NONE) { 
-			LOG_INF("udp message sent");
-		}
+		LOG_INF("COAP message rc: %s", otThreadErrorToString(ot_error));
 	#endif
 }
 
@@ -116,7 +117,7 @@ void main(void)
 	#ifdef DEBUG
 		err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_HIGH);
 		err = gpio_pin_set_dt(&led, 1);
-		k_sleep(K_MSEC(500));
+		k_sleep(K_MSEC(5000));
 
 		const struct device *usbdev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
 		uint32_t dtr = 0;
@@ -131,9 +132,11 @@ void main(void)
 			uart_line_ctrl_get(usbdev, UART_LINE_CTRL_DTR, &dtr);
 			k_sleep(K_MSEC(100));
 		} 
-
+		
 		err = gpio_pin_set_dt(&led, 0);
-		printk("--- ot-sensor-lp ---\n");
+		LOG_INF("--------------------");
+		LOG_INF("--- ot-sensor-lp ---");
+		LOG_INF("--------------------");
 	#endif
 
 	//-------------------------------------
@@ -164,22 +167,18 @@ void main(void)
 	}
 	err = gpio_pin_set_dt(&led, 0);
 
-	// IP address of COAP Server
-	otIp6Address coapAddress;
-	otIp6AddressFromString("fdd0:15d6:9e7f:2:0:0:c0a8:10b", &coapAddress);
-
 	while(true) {
 		//------------------------------------
 		// go to sleep
 		//------------------------------------
 		#ifdef DEBUG
-			printk("sleep...\n");
+			LOG_INF("sleep...\n");
 		#endif
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
 		k_sleep(K_SECONDS(SLEEP_TIME));
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
 		#ifdef DEBUG
-			printk("...wake up\n");
+			LOG_INF("...wake up");
 		#endif
 		
 		//-----------------------------
@@ -192,7 +191,7 @@ void main(void)
 
 		if(!device_is_ready(i2c_device)) {
 			#ifdef DEBUG
-				printk("I2C bus not ready!\n");
+				LOG_ERR("I2C bus not ready!");
 			#endif
 			return;
 		}
@@ -202,7 +201,7 @@ void main(void)
 
 		// read chip id
 		#ifdef DEBUG
-			printk("Chip ID 0x%02X \n", bme280_read_chip_id());
+			LOG_INF("Chip ID 0x%02X", bme280_read_chip_id());
 		#endif
 
 		//------------------------------------
@@ -221,15 +220,15 @@ void main(void)
 			eui64_id, bme280_result.temp, bme280_result.press, bme280_result.hum);
 
 		#ifdef DEBUG
-			printk("JSON message: %s \n",json_buf);
+			LOG_INF("JSON message: %s",json_buf);
 		#endif
 	
 		//------------------------------------
-		// broadcast udp message 
+		// send COAP message 
 		// -- only if we are connected
 		//------------------------------------
 		if(OT_DEVICE_ROLE_CHILD == otThreadGetDeviceRole(ot_instance)) {
-			udp_send(json_buf);
+			coap_send(json_buf);
 		}
 		else {
 			#ifdef DEBUG
