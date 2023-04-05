@@ -65,42 +65,47 @@ void coap_response_handler(void * p_context, otMessage * p_message, const otMess
 }
 
 //-----------------------------
-void coap_send(char *jsonbuf)
+void coap_send(otInstance *ot_instance, char *jsonbuf)
 //-----------------------------
 {
 	otError ot_error = OT_ERROR_NONE;
-
-	// IP address of COAP Server nodered.modellmarine.de
-	otIp6Address coapAddress;
-	otIp6AddressFromString("fdd0:15d6:9e7f:2:0:0:c0a8:10b", &coapAddress);
-
-	// fetch OpenThread instance
-	otInstance *ot_instance;
-	ot_instance = openthread_get_default_instance();
+	char ip6buf[120];
 
 	otMessageSettings msgSettings;
 	msgSettings.mLinkSecurityEnabled = false;
 	msgSettings.mPriority = OT_MESSAGE_PRIORITY_NORMAL;
 
 	otMessageInfo msgInfo;
-	msgInfo.mPeerAddr = coapAddress;
 	msgInfo.mPeerPort = OT_DEFAULT_COAP_PORT;
+	otIp6AddressFromString("fdd0:15d6:9e7f:2:0:0:c0a8:10b", &msgInfo.mPeerAddr);
 
 	otMessage *msg = otCoapNewMessage( ot_instance, &msgSettings);
 	otCoapMessageInit(msg, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_PUT);
 	otCoapMessageGenerateToken(msg, 8);
 	ot_error = otCoapMessageAppendUriPathOptions(msg, "openthread");
+	#ifdef DEBUG
 		LOG_INF("UriPathOption rc: %s", otThreadErrorToString(ot_error));
+	#endif
 	ot_error = otCoapMessageAppendContentFormatOption(msg, OT_COAP_OPTION_CONTENT_FORMAT_JSON);
+	#ifdef DEBUG
 		LOG_INF("ContentFormatOption rc: %s", otThreadErrorToString(ot_error));
+	#endif
 	ot_error = otCoapMessageSetPayloadMarker(msg);
+	#ifdef DEBUG
 		LOG_INF("SetPayloadMarker rc: %s", otThreadErrorToString(ot_error));
+	#endif
 	ot_error = otMessageAppend(msg, jsonbuf, strlen(jsonbuf));
+	#ifdef DEBUG
 		LOG_INF("MessageAppend rc: %s", otThreadErrorToString(ot_error));
+	#endif
 	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, coap_response_handler, NULL);
 	#ifdef DEBUG
+		otIp6AddressToString(&msgInfo.mPeerAddr, ip6buf, 119);
+		LOG_INF("COAP endpoint IP: %s, Port: %d", ip6buf, msgInfo.mPeerPort);
 		LOG_INF("COAP message rc: %s", otThreadErrorToString(ot_error));
 	#endif
+
+	otMessageFree(msg);
 }
 
 //-----------------------------
@@ -111,12 +116,12 @@ void main(void)
 	int err;
 	
 	otExtAddress eui64;
-	char eui64_id[25];
+	char eui64_id[25] = "\0";
 	char buf[3];
 
 	#ifdef DEBUG
 		err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_HIGH);
-		err = gpio_pin_set_dt(&led, 1);
+		err = gpio_pin_set_dt(&led, HIGH);
 		k_sleep(K_MSEC(5000));
 
 		const struct device *usbdev = DEVICE_DT_GET(DT_CHOSEN(zephyr_console));
@@ -133,7 +138,7 @@ void main(void)
 			k_sleep(K_MSEC(100));
 		} 
 		
-		err = gpio_pin_set_dt(&led, 0);
+		err = gpio_pin_set_dt(&led, LOW);
 		LOG_INF("--------------------");
 		LOG_INF("--- ot-sensor-lp ---");
 		LOG_INF("--------------------");
@@ -150,6 +155,9 @@ void main(void)
 	// convert EUI64 to hex string
 	for (uint8_t i=0; i < 8; i++) {
 		snprintk(buf, sizeof(buf),"%02X",eui64.m8[i]);
+		#ifdef DEBUG
+			LOG_INF("byte nr. %d: %s", i, buf);
+		#endif
 		strcat(eui64_id,buf);
 	}
 	
@@ -161,12 +169,16 @@ void main(void)
 	while ((device_state == OT_DEVICE_ROLE_DETACHED)
 			||(device_state == OT_DEVICE_ROLE_DISABLED)) {
 		err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_HIGH);
-		err = gpio_pin_set_dt(&led, 1);
+		err = gpio_pin_set_dt(&led, HIGH);
 		k_sleep(K_MSEC(1000));
 		device_state = otThreadGetDeviceRole(ot_instance);
 	}
-	err = gpio_pin_set_dt(&led, 0);
+	err = gpio_pin_set_dt(&led, LOW);
 
+
+	//------------------------------------
+	// main loop
+	//------------------------------------
 	while(true) {
 		//------------------------------------
 		// go to sleep
@@ -201,7 +213,7 @@ void main(void)
 
 		// read chip id
 		#ifdef DEBUG
-			LOG_INF("Chip ID 0x%02X", bme280_read_chip_id());
+			LOG_INF("I2C Chip ID: 0x%02X", bme280_read_chip_id());
 		#endif
 
 		//------------------------------------
@@ -228,7 +240,7 @@ void main(void)
 		// -- only if we are connected
 		//------------------------------------
 		if(OT_DEVICE_ROLE_CHILD == otThreadGetDeviceRole(ot_instance)) {
-			coap_send(json_buf);
+			coap_send(ot_instance, json_buf);
 		}
 		else {
 			#ifdef DEBUG
