@@ -48,9 +48,10 @@ static const struct gpio_dt_spec bme280_power = GPIO_DT_SPEC_GET(PWR_IO_NODE, gp
 #include "bme280.h"
 struct bme280_result_type bme280_result;
 
-//-----------------------------
-void coap_response_handler(void * p_context, otMessage * p_message, const otMessageInfo * p_msginfo, otError result)
-//-----------------------------
+//--------------------------------------------------------------------------
+void coap_response_handler(void * p_context, otMessage * p_message, 
+						   const otMessageInfo * p_msginfo, otError result)
+//--------------------------------------------------------------------------
 {
 	if (result == OT_ERROR_NONE) {
 		#ifdef DEBUG
@@ -59,17 +60,23 @@ void coap_response_handler(void * p_context, otMessage * p_message, const otMess
 	}
 	else {
 		#ifdef DEBUG
-			LOG_INF("Message delivery not confirmed rc: %d", result);
+			LOG_INF("Message delivery not confirmed rc: %s", otThreadErrorToString(result));
 		#endif
 	}
 }
 
-//-----------------------------
+//--------------------------------------------------------------------------
 void coap_send(otInstance *ot_instance, char *jsonbuf)
-//-----------------------------
+//--------------------------------------------------------------------------
 {
 	otError ot_error = OT_ERROR_NONE;
 	char ip6buf[40];
+
+	// start COAP
+	ot_error = otCoapStart(ot_instance, OT_DEFAULT_COAP_PORT);
+	#ifdef DEBUG
+		LOG_INF("COAP started, rc: %s", otThreadErrorToString(ot_error));
+	#endif
 
 	otMessageInfo msgInfo;
 	memset(&msgInfo, 0, sizeof(msgInfo)); // why?
@@ -99,7 +106,7 @@ void coap_send(otInstance *ot_instance, char *jsonbuf)
 		LOG_INF("MessageAppend rc: %s", otThreadErrorToString(ot_error));
 	#endif
 
-	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, coap_response_handler, NULL);
+	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, NULL, NULL);
 	#ifdef DEBUG
 		otIp6AddressToString(&msgInfo.mPeerAddr, ip6buf, 39);
 		LOG_INF("COAP endpoint IP: %s, Port: %d", ip6buf, msgInfo.mPeerPort);
@@ -107,11 +114,18 @@ void coap_send(otInstance *ot_instance, char *jsonbuf)
 	#endif
 
 	otMessageFree(msg);
+
+	// stop COAP
+	ot_error = otCoapStop(ot_instance);
+	#ifdef DEBUG
+		LOG_INF("COAP stopped, rc: %s", otThreadErrorToString(ot_error));
+	#endif
+
 }
 
-//-----------------------------
+//--------------------------------------------------------------------------
 void main(void)
-//-----------------------------
+//--------------------------------------------------------------------------
 {
 	char json_buf[80];
 	int err;
@@ -175,7 +189,6 @@ void main(void)
 		device_state = otThreadGetDeviceRole(ot_instance);
 	}
 	err = gpio_pin_set_dt(&led, LOW);
-
 
 	//------------------------------------
 	// main loop
@@ -251,5 +264,6 @@ void main(void)
 
 		// clear json buffer
 		json_buf[0] = "\0";
+
 	};
 }
