@@ -69,38 +69,39 @@ void coap_send(otInstance *ot_instance, char *jsonbuf)
 //-----------------------------
 {
 	otError ot_error = OT_ERROR_NONE;
-	char ip6buf[120];
-
-	otMessageSettings msgSettings;
-	msgSettings.mLinkSecurityEnabled = false;
-	msgSettings.mPriority = OT_MESSAGE_PRIORITY_NORMAL;
+	char ip6buf[40];
 
 	otMessageInfo msgInfo;
+	memset(&msgInfo, 0, sizeof(msgInfo)); // why?
 	msgInfo.mPeerPort = OT_DEFAULT_COAP_PORT;
 	otIp6AddressFromString("fdd0:15d6:9e7f:2:0:0:c0a8:10b", &msgInfo.mPeerAddr);
 
-	otMessage *msg = otCoapNewMessage( ot_instance, &msgSettings);
+	otMessage *msg = otCoapNewMessage( ot_instance, NULL);
 	otCoapMessageInit(msg, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_PUT);
-	otCoapMessageGenerateToken(msg, 8);
+
 	ot_error = otCoapMessageAppendUriPathOptions(msg, "openthread");
 	#ifdef DEBUG
 		LOG_INF("UriPathOption rc: %s", otThreadErrorToString(ot_error));
 	#endif
+
 	ot_error = otCoapMessageAppendContentFormatOption(msg, OT_COAP_OPTION_CONTENT_FORMAT_JSON);
 	#ifdef DEBUG
 		LOG_INF("ContentFormatOption rc: %s", otThreadErrorToString(ot_error));
 	#endif
+
 	ot_error = otCoapMessageSetPayloadMarker(msg);
 	#ifdef DEBUG
 		LOG_INF("SetPayloadMarker rc: %s", otThreadErrorToString(ot_error));
 	#endif
+
 	ot_error = otMessageAppend(msg, jsonbuf, strlen(jsonbuf));
 	#ifdef DEBUG
 		LOG_INF("MessageAppend rc: %s", otThreadErrorToString(ot_error));
 	#endif
+
 	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, coap_response_handler, NULL);
 	#ifdef DEBUG
-		otIp6AddressToString(&msgInfo.mPeerAddr, ip6buf, 119);
+		otIp6AddressToString(&msgInfo.mPeerAddr, ip6buf, 39);
 		LOG_INF("COAP endpoint IP: %s, Port: %d", ip6buf, msgInfo.mPeerPort);
 		LOG_INF("COAP message rc: %s", otThreadErrorToString(ot_error));
 	#endif
