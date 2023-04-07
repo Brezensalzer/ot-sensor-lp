@@ -10,7 +10,7 @@
 #include <stdio.h>
 
 #include <openthread/thread.h>
-#include <openthread/udp.h>
+//#include <openthread/udp.h>
 #include <zephyr/pm/pm.h>
 #include <zephyr/pm/device.h>
 #include <openthread/coap.h>
@@ -71,56 +71,51 @@ void coap_send(otInstance *ot_instance, char *jsonbuf)
 {
 	otError ot_error = OT_ERROR_NONE;
 	char ip6buf[40];
-
-	// start COAP
-	ot_error = otCoapStart(ot_instance, OT_DEFAULT_COAP_PORT);
-	#ifdef DEBUG
-		LOG_INF("COAP started, rc: %s", otThreadErrorToString(ot_error));
-	#endif
-
+	otMessage *msg = NULL;
 	otMessageInfo msgInfo;
 	memset(&msgInfo, 0, sizeof(msgInfo)); // why?
 	msgInfo.mPeerPort = OT_DEFAULT_COAP_PORT;
 	otIp6AddressFromString("fdd0:15d6:9e7f:2:0:0:c0a8:10b", &msgInfo.mPeerAddr);
 
-	otMessage *msg = otCoapNewMessage( ot_instance, NULL);
+	msg = otCoapNewMessage( ot_instance, NULL);
 	otCoapMessageInit(msg, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_PUT);
+	otCoapMessageGenerateToken(msg, OT_COAP_MAX_TOKEN_LENGTH);
 
 	ot_error = otCoapMessageAppendUriPathOptions(msg, "openthread");
 	#ifdef DEBUG
-		LOG_INF("UriPathOption rc: %s", otThreadErrorToString(ot_error));
+		if (ot_error != OT_ERROR_NONE)
+		 { LOG_INF("UriPathOption rc: %s", otThreadErrorToString(ot_error)); }
 	#endif
 
 	ot_error = otCoapMessageAppendContentFormatOption(msg, OT_COAP_OPTION_CONTENT_FORMAT_JSON);
 	#ifdef DEBUG
-		LOG_INF("ContentFormatOption rc: %s", otThreadErrorToString(ot_error));
+		if (ot_error != OT_ERROR_NONE)
+		{ LOG_INF("ContentFormatOption rc: %s", otThreadErrorToString(ot_error)); }
 	#endif
 
 	ot_error = otCoapMessageSetPayloadMarker(msg);
 	#ifdef DEBUG
-		LOG_INF("SetPayloadMarker rc: %s", otThreadErrorToString(ot_error));
+		if (ot_error != OT_ERROR_NONE)
+		{ LOG_INF("SetPayloadMarker rc: %s", otThreadErrorToString(ot_error)); }
 	#endif
 
 	ot_error = otMessageAppend(msg, jsonbuf, strlen(jsonbuf));
 	#ifdef DEBUG
-		LOG_INF("MessageAppend rc: %s", otThreadErrorToString(ot_error));
+		if (ot_error != OT_ERROR_NONE)
+		{ LOG_INF("MessageAppend rc: %s", otThreadErrorToString(ot_error)); }
 	#endif
 
-	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, NULL, NULL);
+	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, coap_response_handler, NULL);
 	#ifdef DEBUG
 		otIp6AddressToString(&msgInfo.mPeerAddr, ip6buf, 39);
 		LOG_INF("COAP endpoint IP: %s, Port: %d", ip6buf, msgInfo.mPeerPort);
 		LOG_INF("COAP message rc: %s", otThreadErrorToString(ot_error));
 	#endif
-
-	otMessageFree(msg);
-
-	// stop COAP
-	ot_error = otCoapStop(ot_instance);
-	#ifdef DEBUG
-		LOG_INF("COAP stopped, rc: %s", otThreadErrorToString(ot_error));
-	#endif
-
+	// only call otMessageFree in case of error!
+	// otherwise no message is sent and the system hangs!
+	if (ot_error != OT_ERROR_NONE) {
+		otMessageFree(msg);	
+	}
 }
 
 //--------------------------------------------------------------------------
@@ -134,6 +129,7 @@ void main(void)
 	char eui64_id[25] = "\0";
 	char buf[3];
 
+	// USB Voodoo
 	#ifdef DEBUG
 		err = gpio_pin_configure_dt(&led, GPIO_OUTPUT_HIGH);
 		err = gpio_pin_set_dt(&led, HIGH);
@@ -190,6 +186,15 @@ void main(void)
 	}
 	err = gpio_pin_set_dt(&led, LOW);
 
+	// configure i2c power pin
+	err = gpio_pin_configure_dt(&bme280_power, GPIO_OUTPUT_HIGH);
+
+	// start COAP
+	err = otCoapStart(ot_instance, OT_DEFAULT_COAP_PORT);
+	#ifdef DEBUG
+		LOG_INF("COAP started, rc: %s", otThreadErrorToString(err));
+	#endif
+
 	//------------------------------------
 	// main loop
 	//------------------------------------
@@ -200,9 +205,11 @@ void main(void)
 		#ifdef DEBUG
 			LOG_INF("sleep...\n");
 		#endif
+		err = gpio_pin_set_dt(&led, LOW);
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
 		k_sleep(K_SECONDS(SLEEP_TIME));
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
+		err = gpio_pin_set_dt(&led, HIGH);
 		#ifdef DEBUG
 			LOG_INF("...wake up");
 		#endif
@@ -211,7 +218,6 @@ void main(void)
 		// init sensor
 		//-----------------------------
 		// power up i2c sensor
-		err = gpio_pin_configure_dt(&bme280_power, GPIO_OUTPUT_HIGH);
 		err = gpio_pin_set_dt(&bme280_power, HIGH);
 		k_sleep(K_MSEC(100)); // sensor boot time
 
