@@ -14,6 +14,7 @@
 #include <zephyr/pm/pm.h>
 #include <zephyr/pm/device.h>
 #include <openthread/coap.h>
+#include <openthread/dns_client.h>
 
 #define DEBUG
 #ifdef DEBUG
@@ -48,22 +49,13 @@ static const struct gpio_dt_spec bme280_power = GPIO_DT_SPEC_GET(PWR_IO_NODE, gp
 #include "bme280.h"
 struct bme280_result_type bme280_result;
 
-//--------------------------------------------------------------------------
-void coap_response_handler(void * p_context, otMessage * p_message, 
-						   const otMessageInfo * p_msginfo, otError result)
-//--------------------------------------------------------------------------
-{
-	if (result == OT_ERROR_NONE) {
-		#ifdef DEBUG
-			LOG_INF("Message delivery confirmed");
-		#endif
-	}
-	else {
-		#ifdef DEBUG
-			LOG_INF("Message delivery not confirmed rc: %s", otThreadErrorToString(result));
-		#endif
-	}
-}
+// hostname and ip address of coap server
+const char *dnsResolver = "ff03::1"; // mesh-local multicast address
+const char *serviceLabel = "coap2mqtt";
+const char *serviceName = "_coap._udp.default.service.arpa.";
+const char *serviceHostname = "sensordata.default.service.arpa.";
+otIp6Address coapServer;
+bool resolved = false;
 
 //--------------------------------------------------------------------------
 void coap_send(otInstance *ot_instance, char *jsonbuf)
@@ -75,13 +67,13 @@ void coap_send(otInstance *ot_instance, char *jsonbuf)
 	otMessageInfo msgInfo;
 	memset(&msgInfo, 0, sizeof(msgInfo)); // why?
 	msgInfo.mPeerPort = OT_DEFAULT_COAP_PORT;
-	otIp6AddressFromString("fdd0:15d6:9e7f:2:0:0:c0a8:10b", &msgInfo.mPeerAddr);
+	msgInfo.mPeerAddr = coapServer;
 
 	msg = otCoapNewMessage( ot_instance, NULL);
 	otCoapMessageInit(msg, OT_COAP_TYPE_NON_CONFIRMABLE, OT_COAP_CODE_PUT);
 	otCoapMessageGenerateToken(msg, OT_COAP_MAX_TOKEN_LENGTH);
 
-	ot_error = otCoapMessageAppendUriPathOptions(msg, "openthread");
+	ot_error = otCoapMessageAppendUriPathOptions(msg, "sensordata");
 	#ifdef DEBUG
 		if (ot_error != OT_ERROR_NONE)
 		 { LOG_INF("UriPathOption rc: %s", otThreadErrorToString(ot_error)); }
@@ -105,7 +97,7 @@ void coap_send(otInstance *ot_instance, char *jsonbuf)
 		{ LOG_INF("MessageAppend rc: %s", otThreadErrorToString(ot_error)); }
 	#endif
 
-	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, coap_response_handler, NULL);
+	ot_error = otCoapSendRequest(ot_instance, msg, &msgInfo, NULL, NULL);
 	#ifdef DEBUG
 		otIp6AddressToString(&msgInfo.mPeerAddr, ip6buf, 39);
 		LOG_INF("COAP endpoint IP: %s, Port: %d", ip6buf, msgInfo.mPeerPort);
@@ -115,6 +107,65 @@ void coap_send(otInstance *ot_instance, char *jsonbuf)
 	// otherwise no message is sent and the system hangs!
 	if (ot_error != OT_ERROR_NONE) {
 		otMessageFree(msg);	
+	}
+}
+
+//--------------------------------------------------------------------------
+static void resolve_callback(otError aError, const otDnsServiceResponse *aResponse, void *aContext)
+//--------------------------------------------------------------------------
+{
+	otError ot_error;
+	char *buf[40];
+	LOG_INF("DNS resolver callback");
+
+	if (aError == OT_ERROR_NONE) {
+		ot_error = otDnsServiceResponseGetHostAddress(aResponse, serviceHostname, 0, &coapServer, NULL);
+		#ifdef DEBUG
+			otIp6AddressToString(&coapServer, buf, 39);
+			LOG_INF("service hostname: %s", serviceHostname);
+			LOG_INF("service hostname successfully resolved %s", buf);
+		#endif
+		resolved = true;
+	}
+	else {
+		#ifdef DEBUG
+			LOG_ERR("service hostname not resolved!");
+		#endif
+	}
+}
+
+//--------------------------------------------------------------------------
+static void resolveCoapServer(otInstance *ot_instance)
+//--------------------------------------------------------------------------
+{
+	otError ot_error;
+	char *buf_old[40];
+	struct openthread_context *ctx = openthread_get_default_context();
+
+	otDnsQueryConfig *queryConfig = NULL;
+	queryConfig = otDnsClientGetDefaultConfig(ot_instance);
+	otIp6AddressToString(&queryConfig->mServerSockAddr.mAddress, buf_old, 39);
+	#ifdef DEBUG
+		LOG_INF("default mDNS server: %s", buf_old);
+	#endif
+
+	otIp6AddressFromString(dnsResolver, &queryConfig->mServerSockAddr.mAddress);
+	queryConfig->mResponseTimeout = 1000;	
+	otDnsClientSetDefaultConfig(ot_instance, queryConfig);
+	#ifdef DEBUG
+		otIp6AddressToString(&queryConfig->mServerSockAddr.mAddress, dnsResolver, 39);
+		LOG_INF("new mDNS server: %s", dnsResolver);
+	#endif
+
+	openthread_api_mutex_lock(ctx);
+	ot_error = otDnsClientResolveService(ot_instance, serviceLabel, serviceName, resolve_callback, ctx, queryConfig);
+	openthread_api_mutex_unlock(ctx);
+	#ifdef DEBUG
+		LOG_INF("started DNS resolving service rc: %s", otThreadErrorToString(ot_error));
+	#endif
+
+	while (resolved == false) {
+		k_sleep(K_MSEC(500));
 	}
 }
 
@@ -188,6 +239,10 @@ void main(void)
 
 	// configure i2c power pin
 	err = gpio_pin_configure_dt(&bme280_power, GPIO_OUTPUT_HIGH);
+
+	// DNS resolve hostname of COAP Server
+	//otError ot_error = otIp6AddressFromString(coapIpv6, &coapServer);
+	resolveCoapServer(ot_instance);
 
 	// start COAP
 	err = otCoapStart(ot_instance, OT_DEFAULT_COAP_PORT);
