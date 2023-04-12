@@ -16,7 +16,7 @@
 #include <openthread/coap.h>
 #include <openthread/dns_client.h>
 
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 	#include <zephyr/drivers/uart.h>
 	#include <zephyr/usb/usb_device.h>
@@ -116,8 +116,10 @@ static void resolve_callback(otError aError, const otDnsServiceResponse *aRespon
 {
 	otError ot_error;
 	char *buf[40];
-	LOG_INF("DNS resolver callback");
-
+	#ifdef DEBUG
+		LOG_INF("DNS resolver callback");
+	#endif
+	
 	if (aError == OT_ERROR_NONE) {
 		ot_error = otDnsServiceResponseGetHostAddress(aResponse, serviceHostname, 0, &coapServer, NULL);
 		#ifdef DEBUG
