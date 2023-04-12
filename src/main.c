@@ -119,7 +119,7 @@ static void resolve_callback(otError aError, const otDnsServiceResponse *aRespon
 	#ifdef DEBUG
 		LOG_INF("DNS resolver callback");
 	#endif
-	
+
 	if (aError == OT_ERROR_NONE) {
 		ot_error = otDnsServiceResponseGetHostAddress(aResponse, serviceHostname, 0, &coapServer, NULL);
 		#ifdef DEBUG
@@ -246,12 +246,6 @@ void main(void)
 	//otError ot_error = otIp6AddressFromString(coapIpv6, &coapServer);
 	resolveCoapServer(ot_instance);
 
-	// start COAP
-	err = otCoapStart(ot_instance, OT_DEFAULT_COAP_PORT);
-	#ifdef DEBUG
-		LOG_INF("COAP started, rc: %s", otThreadErrorToString(err));
-	#endif
-
 	//------------------------------------
 	// main loop
 	//------------------------------------
@@ -316,6 +310,12 @@ void main(void)
 		// send COAP message 
 		// -- only if we are connected
 		//------------------------------------
+		// start COAP
+		err = otCoapStart(ot_instance, OT_DEFAULT_COAP_PORT);
+		#ifdef DEBUG
+			LOG_INF("COAP started, rc: %s", otThreadErrorToString(err));
+		#endif
+
 		if(OT_DEVICE_ROLE_CHILD == otThreadGetDeviceRole(ot_instance)) {
 			coap_send(ot_instance, json_buf);
 		}
@@ -324,6 +324,12 @@ void main(void)
 				LOG_ERR("not connected to a network, message not sent");
 			#endif
 		}
+
+		// stop COAP
+		err = otCoapStop(ot_instance);
+		#ifdef DEBUG
+			LOG_INF("COAP started, rc: %s", otThreadErrorToString(err));
+		#endif
 
 		// clear json buffer
 		json_buf[0] = "\0";
