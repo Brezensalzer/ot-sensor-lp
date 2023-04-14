@@ -6,11 +6,11 @@
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/adc.h>
 #include <string.h>
 #include <stdio.h>
 
 #include <openthread/thread.h>
-//#include <openthread/udp.h>
 #include <zephyr/pm/pm.h>
 #include <zephyr/pm/device.h>
 #include <openthread/coap.h>
@@ -39,6 +39,21 @@ static const struct gpio_dt_spec bme280_power = GPIO_DT_SPEC_GET(PWR_IO_NODE, gp
 #if DT_NODE_HAS_STATUS(PWR_IO_NODE, okay)
 #define PWR_IO_PIN DT_GPIO_PIN(PWR_IO_NODE, gpios)
 #endif
+
+// ADC Voodoo
+#if !DT_NODE_EXISTS(DT_PATH(zephyr_user)) || \
+	!DT_NODE_HAS_PROP(DT_PATH(zephyr_user), io_channels)
+#error "No suitable devicetree overlay specified"
+#endif
+
+#define DT_SPEC_AND_COMMA(node_id, prop, idx) \
+	ADC_DT_SPEC_GET_BY_IDX(node_id, idx),
+
+/* Data of ADC io-channels specified in devicetree. */
+static const struct adc_dt_spec adc_channels[] = {
+	DT_FOREACH_PROP_ELEM(DT_PATH(zephyr_user), io_channels,
+			     DT_SPEC_AND_COMMA)
+};
 
 // helper
 #define HIGH 1
@@ -175,7 +190,7 @@ static void resolveCoapServer(otInstance *ot_instance)
 void main(void)
 //--------------------------------------------------------------------------
 {
-	char json_buf[80];
+	char json_buf[100];
 	int err;
 	
 	otExtAddress eui64;
@@ -246,6 +261,33 @@ void main(void)
 	//otError ot_error = otIp6AddressFromString(coapIpv6, &coapServer);
 	resolveCoapServer(ot_instance);
 
+	//-------------------------------------
+	// Setup ADC
+	//-------------------------------------
+	int16_t adc_buf;
+	int32_t bat_mv;
+	struct adc_sequence sequence = {
+		.buffer = &adc_buf,
+		/* buffer size in bytes, not number of samples */
+		.buffer_size = sizeof(adc_buf),
+	};
+
+	/* Configure channel prior to sampling. */
+	if (!device_is_ready(adc_channels[0].dev)) {
+		#ifdef DEBUG
+			LOG_ERR("ADC controller device not ready");
+		#endif
+		return;
+	}
+
+	err = adc_channel_setup_dt(&adc_channels[0]);
+	if (err < 0) {
+		#ifdef DEBUG
+			LOG_ERR("Could not setup channel #0 (%d)", err);
+		#endif
+		return;
+	}
+
 	//------------------------------------
 	// main loop
 	//------------------------------------
@@ -256,11 +298,11 @@ void main(void)
 		#ifdef DEBUG
 			LOG_INF("sleep...\n");
 		#endif
-		err = gpio_pin_set_dt(&led, LOW);
+		//err = gpio_pin_set_dt(&led, LOW);
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
 		k_sleep(K_SECONDS(SLEEP_TIME));
 		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
-		err = gpio_pin_set_dt(&led, HIGH);
+		//err = gpio_pin_set_dt(&led, HIGH);
 		#ifdef DEBUG
 			LOG_INF("...wake up");
 		#endif
@@ -295,12 +337,18 @@ void main(void)
 		// power down BME280 sensor
 		err = gpio_pin_set_dt(&bme280_power, LOW);
 
+		// get battery voltage
+		(void)adc_sequence_init_dt(&adc_channels[0], &sequence);
+		err = adc_read(adc_channels[0].dev, &sequence);
+		bat_mv = adc_buf;
+		err = adc_raw_to_millivolts_dt(&adc_channels[0], &bat_mv);
+
 		//------------------------------------
 		// construct json message
 		//------------------------------------
 		snprintk(json_buf, sizeof(json_buf),
-			"{ \"id\": \"%s\", \"temp\": %.2f, \"press\": %.2f, \"hum\": %.2f }",
-			eui64_id, bme280_result.temp, bme280_result.press, bme280_result.hum);
+			"{ \"id\": \"%s\", \"batt\": %d, \"temp\": %.2f, \"press\": %.2f, \"hum\": %.2f }",
+			eui64_id, bat_mv, bme280_result.temp, bme280_result.press, bme280_result.hum);
 
 		#ifdef DEBUG
 			LOG_INF("JSON message: %s",json_buf);
