@@ -20,4 +20,4 @@ PPK2 measurement over a full 1 minute cycle (Nordic nRF52840 Dongle, BME280)
 ![PPK2 measurement over a full 1 minute cycle (Nordic nRF52840 Dongle, BME280)](./ppk-20230317T112846.png)
 
 ### UML Sequence Diagram
-![Sequence diagram of the complete flow](./UML-Sequence-Diagram.svg)
+![Sequence diagram of the complete flow](./UML-Sequence-Diagram.png)
