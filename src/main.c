@@ -288,6 +288,10 @@ void main(void)
 		return;
 	}
 
+	// power down all devices
+	pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
+	pm_device_action_run(adc_channels[0].dev, PM_DEVICE_ACTION_SUSPEND);
+
 	//------------------------------------
 	// main loop
 	//------------------------------------
@@ -299,20 +303,19 @@ void main(void)
 			LOG_INF("sleep...\n");
 		#endif
 		//err = gpio_pin_set_dt(&led, LOW);
-		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
 		k_sleep(K_SECONDS(SLEEP_TIME));
-		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
 		//err = gpio_pin_set_dt(&led, HIGH);
 		#ifdef DEBUG
 			LOG_INF("...wake up");
 		#endif
 		
 		//-----------------------------
-		// init sensor
+		// i2c sensor
 		//-----------------------------
 		// power up i2c sensor
+		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_RESUME);
 		err = gpio_pin_set_dt(&bme280_power, HIGH);
-		k_sleep(K_MSEC(100)); // sensor boot time
+		k_sleep(K_MSEC(50)); // sensor boot time
 
 		if(!device_is_ready(i2c_device)) {
 			#ifdef DEBUG
@@ -329,19 +332,29 @@ void main(void)
 			LOG_INF("I2C Chip ID: 0x%02X", bme280_read_chip_id());
 		#endif
 
-		//------------------------------------
 		// take measurement
-		//------------------------------------
 		bme280_result = bme280_read_values();
 
 		// power down BME280 sensor
 		err = gpio_pin_set_dt(&bme280_power, LOW);
+
+		// power down i2c bus
+		pm_device_action_run(i2c_device, PM_DEVICE_ACTION_SUSPEND);
+
+		//-----------------------------
+		// ADC
+		//-----------------------------
+		// power up ADC
+		pm_device_action_run(adc_channels[0].dev, PM_DEVICE_ACTION_RESUME);
 
 		// get battery voltage
 		(void)adc_sequence_init_dt(&adc_channels[0], &sequence);
 		err = adc_read(adc_channels[0].dev, &sequence);
 		bat_mv = adc_buf;
 		err = adc_raw_to_millivolts_dt(&adc_channels[0], &bat_mv);
+
+		// power down ADC
+		pm_device_action_run(adc_channels[0].dev, PM_DEVICE_ACTION_SUSPEND);
 
 		//------------------------------------
 		// construct json message
