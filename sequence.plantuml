@@ -1,0 +1,40 @@
+@startuml
+participant "MQTT Broker" as mqtt
+participant "COAP2MQTT\nGateway" as coap
+participant "mDNS Resolver" as mDNS
+participant "OT Border Router" as otbr
+participant "OT Child Sensor" as sed
+
+group Initialize COAP2MQTT Gateway
+  coap -> mqtt: connect to broker
+  coap -> mDNS: register COAP service
+  note right: serviceLabel: coap2mqtt\nserviceName: _coap._udp.\nserviceHost: sensordata.local.
+end
+
+group Initialize Openthread Sensor
+  sed -> sed: set SensorID to EUI64 (MAC Address)
+  sed -> sed: configure DNS resolver to mesh-local\nmulticast address ff03::1
+  sed -> otbr: resolve hostname\nfor coap2mqtt service
+  otbr -> mDNS: resolve
+  mDNS -> otbr: response
+  otbr -> sed: response
+end
+
+group Measurement Cycle
+  sed -> sed: deep sleep 60s
+  sed -> sed: power up i2c and sensor
+  sed -> sed: take measurement
+  sed -> sed: power down i2c and sensor
+  sed -> sed: power up ADC
+  sed -> sed: take measurement
+  sed -> sed: power down ADC
+  sed -> coap: PUT sensor data as JSON
+  coap -> coap: parse JSON payload
+  coap -> mqtt: publish sensor data
+  note left
+    topic for each metric: 
+    openthread/[SensorID]/[metric]
+  end note
+end
+
+@enduml

@@ -3,7 +3,7 @@ Broadcasting Sleepy Thread Device with a BME280 sensor on a Nordic nRF52840 Dong
 
 As there is no support for OpenThread in Arduino, I'm trying my luck with the Nordic nRF Connect SDK/Zephyr. 
 After struggling with the new concepts in Zephyr (device tree and overlay files), here is the first working example.
-It broadcasts a JSON datagram with temperature, humidity and air pressure data from a BME280 I2C sensor over UDP and goes to sleep for 60 seconds.
+It sends a JSON datagram with battery voltage, temperature, humidity and air pressure data from a BME280 I2C sensor over COAP/UDP and goes to sleep for 60 seconds.
 
 Giving up on low power with the Zephyr SDK and device tree drivers. It's just not possible with its core concept of a device tree.
 * the i2c bus and the device (sensor) is exclusively initialized during boot.
@@ -19,9 +19,5 @@ So I'm trying brute force methods:
 PPK2 measurement over a full 1 minute cycle (Nordic nRF52840 Dongle, BME280)
 ![PPK2 measurement over a full 1 minute cycle (Nordic nRF52840 Dongle, BME280)](./ppk-20230317T112846.png)
 
-### update (tag beta_v02)
-* added an overlay file for the Seeedstudio XIAO BLE, works exactly like the Nordic dongle.
-
-### update (tag beta_v03)
-* removed the blinky led code
-* added an overlay file for the Adafruit Itsybitsy nRF52840, works like the Nordic dongle.
+### UML Sequence Diagram
+![Sequence diagram of the complete flow](./UML-Sequence-Diagram.svg)
