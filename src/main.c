@@ -16,7 +16,7 @@
 #include <openthread/coap.h>
 #include <openthread/dns_client.h>
 
-//#define DEBUG
+#define DEBUG
 #ifdef DEBUG
 	#include <zephyr/drivers/uart.h>
 	#include <zephyr/usb/usb_device.h>

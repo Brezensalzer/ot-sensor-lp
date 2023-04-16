@@ -1,5 +1,5 @@
 # ot-sensor-lp
-Broadcasting Sleepy Thread Device with a BME280 sensor on a Nordic nRF52840 Dongle (PCA10059). Programmed with nRF Connect for Desktop/Zephyr.
+Sleepy Thread Device with a BME280 sensor on a Nordic nRF52840 Dongle (PCA10059). Programmed with nRF Connect for Desktop/Zephyr.
 
 As there is no support for OpenThread in Arduino, I'm trying my luck with the Nordic nRF Connect SDK/Zephyr. 
 After struggling with the new concepts in Zephyr (device tree and overlay files), here is the first working example.
